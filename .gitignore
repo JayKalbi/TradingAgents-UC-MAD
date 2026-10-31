@@ -217,7 +217,13 @@ __marimo__/
 
 # Cache
 **/data_cache/
+.tradingagents-data/
+frontend/node_modules/
+frontend/dist/
 
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
 reports/
+
+tmp/
+output/

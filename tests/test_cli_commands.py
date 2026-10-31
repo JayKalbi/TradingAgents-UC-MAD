@@ -141,6 +141,15 @@ def test_backtest_reports_a_setup_failure_in_one_line(runner, monkeypatch):
 
 
 @pytest.mark.unit
+def test_compare_reports_a_missing_run_without_traceback(runner):
+    result = runner.invoke(m.app, ["compare", "missing-a", "missing-b"])
+
+    assert result.exit_code == 1
+    assert "no backtest memory log" in result.output
+    assert "Traceback" not in result.output
+
+
+@pytest.mark.unit
 def test_backtest_shows_each_cell_and_how_to_continue(runner, monkeypatch, tmp_path):
     def sweep(tickers, dates, config, progress=None, **kw):
         for i, date in enumerate(dates, 1):

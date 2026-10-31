@@ -29,6 +29,53 @@
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
+## Research Dashboard (MTech project extension)
+
+This checkout includes an optional React + TypeScript dashboard backed by a local FastAPI service. It keeps the original TradingAgents CLI available and adds a browser workflow for market monitoring, agent analysis, saved reports, and paired India-market experiments.
+
+### Windows quick start
+
+Requirements: Python environment with the project dependencies installed, Node.js/npm, and a configured `.env` for live LLM analysis. The market monitor uses Yahoo Finance data through `yfinance`; availability and refresh timing depend on that public data source.
+
+From a normal PowerShell window (not a restricted IDE/Codex terminal, if Windows blocks its network access), start the API in the repository root:
+
+```powershell
+Set-Location "D:\AIML Project\TradingAgents"
+.\.venv\Scripts\python.exe -m uvicorn api_server:app --host 127.0.0.1 --port 8000
+```
+
+In a second PowerShell window, start the React development server:
+
+```powershell
+Set-Location "D:\AIML Project\TradingAgents\frontend"
+npm run dev
+```
+
+Open the URL printed by Vite, normally `http://127.0.0.1:5173`. The frontend proxies API requests to the local service on port 8000. To stop either process, press `Ctrl+C` in its terminal.
+
+To build and serve the production frontend from FastAPI instead:
+
+```powershell
+Set-Location "D:\AIML Project\TradingAgents\frontend"
+npm run build
+Set-Location "D:\AIML Project\TradingAgents"
+.\.venv\Scripts\python.exe -m uvicorn api_server:app --host 127.0.0.1 --port 8000
+```
+
+Then open `http://127.0.0.1:8000`. API keys stay in the ignored local `.env` file. Live LLM runs require an available provider quota; deterministic CLI and report workflows remain available without submitting a dashboard LLM run.
+
+The dashboard accepts global Yahoo Finance symbols. The research experiment workflow is configured to showcase Indian equities (for example, `RELIANCE.NS` or `TCS.NS`) against NIFTY 50 (`^NSEI`) and compares matched analyst configurations. Treat historical backtests as research output, not investment advice.
+
+### M.Tech research deliverables
+
+- Beginner-friendly project workflow and file map: [`docs/PROJECT_GUIDE.md`](docs/PROJECT_GUIDE.md)
+
+- Research manuscript source (single-column layout modeled on the referenced TradingAgents paper): [`research-paper/main.tex`](research-paper/main.tex)
+- Current measured pilot and submission checklist: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
+- Clean-start demo flow and viva prompts: [`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md)
+
+The saved experiment currently contains three matched RELIANCE.NS ticker/date cases. Treat its statistics as exploratory; expand the matched India sample before making broader claims. Re-scoring saved results does not make Gemini calls. Before new live runs, check the model project's tier and available quota in Google AI Studio.
+
 ## News
 
 <!-- news:start -->
@@ -382,6 +429,16 @@ tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. A decision is entered at the first close after its date, because a run reads news published after that day's close. Your own memory log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
 
+To compare two completed runs on the same settled ticker/date cells, use the run ids printed by `backtest`:
+
+```bash
+tradingagents compare 20261028_120000 20261028_121500
+```
+
+The comparison reports realized alpha as market-outcome context, then measures the primary paired outcome as rating-weighted benchmark-relative alpha. Rating weights are Buy +1, Overweight +0.5, Hold 0, Underweight −0.5, and Sell −1; the resulting figure is an explicit signal proxy, not simulated portfolio execution or fees. It also reports directional accuracy among non-neutral ratings and directional coverage, so accuracy cannot be read without seeing how often each system makes a directional call. It reports seeded paired-bootstrap intervals and two-sided sign-flip tests, and writes a self-contained HTML report and `paired_cells.csv` under `results_dir/backtest/comparisons/`. Pending, unscored, and unmatched cells are excluded. Treat small samples as exploratory: alpha is rounded in the source log, news/social inputs are not archived, the sign-flip test assumes sign symmetry under the null, and overlapping holding windows can make cells dependent.
+
+In the React Research Study page, saved comparisons can be re-scored from their local backtest logs with the current metrics. This recalculation does not call an LLM; it may retrieve Yahoo prices only if a saved decision still has a pending outcome.
+
 ## Reproducibility
 
 TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
@@ -423,3 +480,4 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+

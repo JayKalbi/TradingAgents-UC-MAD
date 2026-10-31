@@ -10,6 +10,7 @@ from cli.models import AnalystType, AssetType
 from cli.prompts import filter_analysts_for_asset_type, parse_analysts
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.compare import compare_backtests, write_comparison
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
 from tradingagents.portfolio import load_portfolio
@@ -158,6 +159,23 @@ def backtest(
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
     for ticker, reason in result.settlement_failures:
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
+
+
+@app.command("compare")
+def compare_runs(
+    run_a: str = typer.Argument(..., help="First backtest run id"),
+    run_b: str = typer.Argument(..., help="Second backtest run id"),
+):
+    """Compare two runs on matched, settled ticker/date cells."""
+    try:
+        comparison = compare_backtests(run_a, run_b, DEFAULT_CONFIG["results_dir"])
+        html_path, csv_path = write_comparison(comparison, DEFAULT_CONFIG["results_dir"])
+    except (FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(comparison.render())
+    console.print(f"\nHTML report: {html_path}")
+    console.print(f"Paired observations: {csv_path}")
 
 
 # The plans `login` and `logout` take: the providers signed in to, not keyed.

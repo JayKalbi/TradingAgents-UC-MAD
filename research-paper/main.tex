@@ -1,0 +1,202 @@
+\documentclass[10pt]{article}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{graphicx,booktabs,tabularx,array}
+\usepackage[authoryear,round]{natbib}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true,linkcolor=MidnightBlue,citecolor=MidnightBlue,urlcolor=BrickRed]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{caption}
+\setlength{\parindent}{1.2em}
+\setlength{\parskip}{2pt}
+\setlength{\headheight}{15pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{PineGreen}{TRADINGAGENTS RESEARCH STUDY}}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\captionsetup{font=small,labelfont=bf}
+\setlist{nosep,leftmargin=1.5em}
+\title{\vspace{-1.2em}\textbf{Analyst-Team Composition in an LLM-Based Financial Research Workflow: A Matched Pilot Study on Indian Equities}}
+\author{\textbf{Jay Kalbi}\\
+\small M.Tech. Artificial Intelligence and Machine Learning student project}
+\date{\small 30 October 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.2em}
+\begin{abstract}
+\noindent\textbf{Abstract.} Large language model (LLM) financial research systems often combine specialist agents, but adding analysts does not by itself establish better decisions. This study extends the open-source TradingAgents framework with a local interactive dashboard and a paired historical evaluation workflow. We compare a market-only analyst configuration (A) with a market, news, and fundamentals configuration (B), using Gemini 3.5 Flash-Lite on three matched, settled RELIANCE.NS decision dates and five-trading-day NIFTY 50-relative outcomes. Mean rating-weighted alpha was 0.000\% for A and $-0.033\%$ for B. The paired difference (B minus A) was $-0.033$ percentage points (95\% paired-bootstrap interval: $[-0.150,\,+0.050]$ percentage points; exact sign-flip $p=1.00$). A issued Hold on all cases; B issued two non-neutral ratings. The sample is too small to establish a performance difference. The contribution is a reproducible, auditable workflow that links agent configurations to matched outcomes, records source availability, and exposes uncertainty and failure context. Findings are exploratory and motivate a larger multi-company study.
+\end{abstract}
+
+\section{Introduction}
+Autonomous agents built around large language models (LLMs) can combine language-based reasoning with external tools and multi-step actions. The ReAct approach interleaves reasoning traces and actions, allowing a model to obtain evidence from tools during task completion \citep{yao2023react}. Multi-agent systems extend this idea by assigning roles to model instances that critique, synthesize, or specialize in parts of a task \citep{du2023debate}. Financial research systems apply these patterns to market data, company information, and risk analysis.
+
+TradingAgents is an open-source financial research framework organized around specialist analysts and subsequent research, trading, risk, and portfolio stages \citep{xiao2025tradingagents}. A system with additional analyst roles may produce broader coverage, but extra model calls and additional generated content do not guarantee better realized outcomes. The difference must be assessed with a defined comparison and outcome measure.
+
+This work asks: \emph{Does adding news and fundamentals analysts to a market-only configuration change rating-weighted benchmark-relative outcomes on matched Indian-equity cases?} The project reuses the upstream TradingAgents workflow and adds a web interface, market monitoring, saved reports, and a matched evaluation view. The research component compares two analyst configurations on identical ticker-date cases. It does not claim that the model forecasts markets profitably or that the results generalize beyond the observed sample.
+
+The initial experiment covers three settled RELIANCE.NS cases. Its value is primarily methodological: it demonstrates an end-to-end route from a user-selected configuration through analysis, outcome settlement, paired scoring, and report inspection. A three-case pilot cannot support a broad claim about analyst-team performance; all findings below are interpreted accordingly.
+
+\section{Related Work}
+\subsection{Tool-using language model agents}
+ReAct combines reasoning and tool actions in a single agent trajectory \citep{yao2023react}. This pattern provides a useful conceptual basis for systems that gather financial information before producing an analysis. However, a plausible trajectory or fluent explanation is not equivalent to a correct decision. Agent performance must be evaluated against outcomes and stated evaluation rules.
+
+\subsection{Multi-agent reasoning}
+Multi-agent debate uses critique and response among model instances to improve answer quality on reasoning tasks \citep{du2023debate}. The benefit of collaboration depends on the task, the information shared, and the evaluation method. In financial analysis, additional roles may expand information coverage, while also increasing run time and the number of opportunities for unsupported or inconsistent claims.
+
+\subsection{Financial agent frameworks}
+TradingAgents applies a collaborative, role-based workflow to financial research \citep{xiao2025tradingagents}. The current project builds on that framework, while its specific research question is narrower: it evaluates the observed difference between a market-only analyst and an expanded analyst team on matched historical cases. It treats the upstream system as a foundation and attributes its original architecture and implementation to the project authors.
+
+\section{System and Project Contributions}
+The application retains the upstream multi-agent analysis workflow and adds a local FastAPI service and React/TypeScript user interface. Users can inspect supported symbols across markets, view historical price information, launch an agent analysis, review saved reports, and run an India-focused matched comparison. Market monitoring includes price and volume visualizations. The research view presents paired case outcomes, uncertainty summaries, and downloadable results; reports also indicate when a data source was unavailable so that missing evidence is not misrepresented as evidence that no event occurred.
+
+The project-specific contributions are:
+\begin{enumerate}
+  \item a browser-based interface for configuring and reviewing the existing agent workflow;
+  \item a matched historical comparison workflow for analyst-team configurations on Indian equities;
+  \item outcome rescoring and paired summaries from saved experiment records, without additional LLM calls; and
+  \item reporting of sample size, uncertainty, directional coverage, and source availability alongside the measured outcomes.
+\end{enumerate}
+The application is a research and paper-trading tool. It does not place live orders. The LLM component uses Gemini through the configured provider; market data and historical prices are retrieved through the project's Yahoo Finance integration. Those external services can be delayed, incomplete, or unavailable.
+
+Figure~\ref{fig:architecture} summarizes the end-to-end path. The browser sends a validated analysis or experiment request to the local API. The API creates the configured TradingAgents graph, which gathers evidence through date-constrained data tools and calls the selected LLM. Analyst outputs flow through research and risk stages before a portfolio decision is written. For the research workflow, the application then settles saved recommendations against historical prices, pairs identical cases, calculates comparison metrics, and stores reports and machine-readable results.
+
+\begin{figure}[ht]
+\centering
+\setlength{\fboxsep}{4pt}
+\begin{minipage}{0.96\linewidth}\centering
+\fbox{\parbox[c][10mm][c]{0.88\linewidth}{\centering\small Researcher: ticker, date, analyst roles, model, and experiment settings}}\\[-1pt]
+$\Downarrow$\\[-1pt]
+\fbox{\parbox[c][10mm][c]{0.88\linewidth}{\centering\small React/TypeScript interface $\leftrightarrow$ FastAPI local service: validation, job status, and configuration}}\\[-1pt]
+$\Downarrow$\\[-1pt]
+\fbox{\parbox[c][10mm][c]{0.88\linewidth}{\centering\small TradingAgentsGraph / LangGraph: run state, analyst orchestration, and date-constrained tools}}\\[3pt]
+\begin{tabular}{ccc}
+\fbox{\parbox[c][12mm][c]{0.27\linewidth}{\centering\footnotesize Market analyst\\price and indicator evidence}} &
+\fbox{\parbox[c][12mm][c]{0.27\linewidth}{\centering\footnotesize News and social\\evidence}} &
+\fbox{\parbox[c][12mm][c]{0.27\linewidth}{\centering\footnotesize Fundamentals\\evidence}}
+\end{tabular}\\[-1pt]
+\scriptsize Analysts call Gemini and configured data providers; feeds may be unavailable or delayed.\\[-1pt]
+$\Downarrow$\\[-1pt]
+\begin{tabular}{ccccc}
+\fbox{\parbox[c][13mm][c]{0.21\linewidth}{\centering\footnotesize Bull/bear debate\\and research manager}} & $\rightarrow$ &
+\fbox{\parbox[c][13mm][c]{0.21\linewidth}{\centering\footnotesize Trader and risk\\review}} & $\rightarrow$ &
+\fbox{\parbox[c][13mm][c]{0.21\linewidth}{\centering\footnotesize Portfolio\\manager}}
+\end{tabular}\\[-1pt]
+$\Downarrow$\\[-1pt]
+\fbox{\parbox[c][10mm][c]{0.88\linewidth}{\centering\small Analysis report, historical settlement, paired metrics, HTML and CSV exports}}
+\end{minipage}
+\caption{End-to-end product architecture. A single analysis generates a decision and report; a research run additionally settles and compares matched historical cases. The application does not execute live trades.}
+\label{fig:architecture}
+\end{figure}
+
+\section{Research Methodology}
+\subsection{Research question and conditions}
+The independent variable is analyst-team composition. Condition A includes the market analyst only. Condition B includes the market, news, and fundamentals analysts. Both conditions use the same underlying TradingAgents workflow, Gemini 3.5 Flash-Lite model, ticker, decision dates, and settlement procedure. The comparison is paired: each condition is run on the same ticker-date case.
+
+\subsection{Cases and benchmark}
+The pilot consists of RELIANCE.NS on 14, 15, and 16 October 2026, for a total of three matched ticker-date cases. RELIANCE.NS is an Indian-listed equity and the benchmark is NIFTY 50 (\texttt{\^NSEI}). Each case is settled using the project's historical-price procedure over a five-trading-day horizon. This is a small convenience sample from one company, not a random or representative sample of Indian equities.
+
+\subsection{Outcome measures}
+Let $\alpha_i$ denote the realized five-trading-day return of the equity relative to the benchmark for case $i$. A recommendation is mapped to an exposure proxy $w\in\{-1,-0.5,0,0.5,1\}$ for Sell, Underweight, Hold, Overweight, and Buy, respectively. The rating-weighted outcome for configuration $c$ is
+\[
+s_{i,c}=w_{i,c}\alpha_i,
+\qquad
+\Delta_i=s_{i,B}-s_{i,A}.
+\]
+The primary summary is the mean of $s_{i,c}$ for each condition and the mean paired difference $\Delta_i$. This rating-weighted alpha is a signal proxy, not a simulated portfolio return: it excludes position sizing, transaction costs, slippage, liquidity constraints, and order execution.
+
+Directional coverage is the share of cases with a non-neutral rating. Directional accuracy is computed only for non-neutral recommendations and excludes zero-rounded alpha outcomes; it is undefined when a condition makes no eligible calls. Since the two conditions do not both make non-neutral calls on any case, paired directional accuracy is not estimable in this pilot.
+
+\subsection{Statistical procedure and reproducibility}
+Uncertainty for the paired mean difference is summarized by a 95\% paired-bootstrap percentile interval. A two-sided exact paired sign-flip test is used for the null that the paired differences are exchangeable around zero. With only three cases, the test has very low resolution and power; its p-value is descriptive and should not be interpreted as evidence of equivalence. The saved records include ticker, dates, model, analyst selection, and run metadata. Outcome rescoring uses the saved records and does not require a new model call.
+
+\section{Results}
+All six analysis cells (two configurations across three dates) completed without a recorded agent or settlement failure. The realized benchmark-relative outcomes were $-0.3\%$, $+0.9\%$, and $+0.1\%$. Configuration A returned Hold for all three cases. Configuration B returned Overweight on two cases and Hold on one.
+
+\begin{table}[ht]
+\centering
+\caption{Matched RELIANCE.NS pilot outcomes. Weighted outcomes use the recommendation exposure proxy described in Section 4.}
+\label{tab:outcomes}
+\small
+\begin{tabular}{llrrl}
+\toprule
+Decision date & $\alpha_i$ & Rating A & $s_{i,A}$ & Rating B / $s_{i,B}$\\
+\midrule
+14 Oct 2026 & $-0.30\%$ & Hold & $0.00\%$ & Overweight / $-0.15\%$\\
+15 Oct 2026 & $+0.90\%$ & Hold & $0.00\%$ & Hold / $0.00\%$\\
+16 Oct 2026 & $+0.10\%$ & Hold & $0.00\%$ & Overweight / $+0.05\%$\\
+\midrule
+Mean & $+0.23\%$ & --- & $0.00\%$ & $-0.03\%$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\small Mean paired difference and 95\% paired-bootstrap interval (percentage points)\\[2pt]
+\setlength{\unitlength}{1mm}
+\begin{picture}(150,26)
+\put(25,15){\line(1,0){100}}
+\put(91.7,12){\line(0,1){6}}
+\put(25,13){\line(0,1){4}}\put(58.3,13){\line(0,1){4}}
+\put(91.7,13){\line(0,1){4}}\put(125,13){\line(0,1){4}}
+\put(41.7,15){\line(1,0){66.6}}
+\put(41.7,13){\line(0,1){4}}\put(108.3,13){\line(0,1){4}}
+\put(80.6,15){\circle*{2.8}}
+\put(25,6){\makebox(0,0)[t]{$-0.20$}}
+\put(58.3,6){\makebox(0,0)[t]{$-0.10$}}
+\put(91.7,6){\makebox(0,0)[t]{$0$}}
+\put(125,6){\makebox(0,0)[t]{$+0.10$}}
+\end{picture}
+\caption{Observed paired mean is negative, but its interval crosses zero. It is estimated from only three matched cases and does not establish equivalence or broad-market performance.}
+\label{fig:paired-effect}
+\end{figure}
+
+The mean paired score difference (B minus A) was $-0.033$ percentage points. Its 95\% paired-bootstrap interval was $[-0.150,\,+0.050]$ percentage points, and the exact sign-flip test returned $p=1.00$ (Figure~\ref{fig:paired-effect}). The case-level arithmetic explains the average: on 14 October B's Overweight exposure multiplied the $-0.30\%$ realized alpha by 0.5, producing $-0.15\%$; on 15 October B chose Hold and therefore received a zero weighted score despite a $+0.90\%$ market-relative outcome; on 16 October Overweight multiplied $+0.10\%$ by 0.5, producing $+0.05\%$. A's Hold recommendation yields zero weighted score in all three cases. Thus B generated more directional calls, but one negative contribution outweighed the smaller positive contribution.
+
+Directional coverage was 0/3 (0\%) for A and 2/3 (66.7\%) for B. Directional accuracy was undefined for A and 50\% (one correct of two) for B. No case had non-neutral recommendations from both conditions, so paired directional accuracy is unavailable. The sign-flip $p$-value of 1.00 is not the probability that the null hypothesis is true; with three cases, only a small number of distinct sign assignments exist. The interval likewise summarizes a very small sample and cannot support a stable population estimate.
+
+\section{Discussion}
+The observed difference is driven by three distinct behaviors, rather than a uniform deterioration in each case. The market-only analyst's Hold outputs avoid directional exposure under this metric, so its mean weighted alpha is exactly zero; that does not mean it correctly forecast each market outcome. The expanded configuration contributes a loss on the first date, no exposure on the second, and a small positive score on the third. Its higher coverage is a behavioral difference, not by itself evidence of better predictive quality.
+
+The interval includes zero and spans both negative and positive paired effects. With three observations, bootstrap resampling can only recombine a few unique case values, while the exact paired test has low resolution and power. Neither summary shows that the configurations are equivalent. The experiment also scores recommendations against the realized market outcome; it does not independently verify every factual statement in the agents' narratives against archived source material.
+
+These limits shape the product design: the comparison page presents sample size, paired outcomes, uncertainty, coverage, and data limitations together. The standalone analysis report separately explains its workflow and data snapshot so readers can distinguish fetched measurements from model-generated interpretation. A stronger follow-up should include more Indian companies and non-overlapping dates, repeat each condition, preserve source provenance, and define the scoring procedure before examining results.
+
+\section{Limitations and Future Work}
+This is a single-company pilot with three decision dates and one model configuration. It does not estimate run-to-run variability from stochastic generation, and therefore cannot separate configuration effects from sampling variability in the LLM's outputs. The data period is short, and the chosen five-day horizon and NIFTY 50 benchmark influence the measured outcome.
+
+External news, fundamentals, and market feeds may be incomplete or unavailable. The generated analysis is not a verified statement of all relevant information, and the app's source-availability labels do not establish factual completeness. The rating-weighted measure is a simplified signal proxy, not evidence of investable returns. It omits transaction costs, risk constraints, portfolio construction, and execution effects.
+
+A stronger follow-up should include multiple Indian equities and a longer, non-overlapping date set; repeat each condition with documented randomization or fixed decoding settings; preserve source snapshots and model/version metadata; define the analysis plan before examining outcomes; and use an evaluation design that accounts for dependence across nearby dates. Portfolio claims would require a separate backtest with realistic costs and risk controls.
+
+\section{Conclusion}
+This project combines an LLM-based financial research workflow with an interactive application for global market inspection and India-focused matched evaluation. The pilot compared a market-only analyst with an expanded market, news, and fundamentals team across three settled RELIANCE.NS cases. The expanded condition had a mean rating-weighted NIFTY-relative outcome of $-0.033\%$, compared with $0.000\%$ for the market-only condition, but the paired interval included zero and the sample is far too small for a general conclusion. The primary contribution is a transparent, reproducible workflow that makes configuration, paired outcomes, data-source limitations, and uncertainty inspectable.
+
+\section*{Acknowledgments}
+This project builds on the open-source TradingAgents framework. The upstream authors retain credit for their original work; project-specific additions are described in Section 3. The manuscript follows the general single-column research-paper presentation of the referenced TradingAgents article, while its text, study design, results, and interpretation are specific to this student project.
+
+\begin{thebibliography}{9}
+\bibitem[Yao et~al.(2023)Yao, Zhao, Yu, Du, Shafran, Narasimhan, and Cao]{yao2023react}
+S. Yao, J. Zhao, D. Yu, N. Du, I. Shafran, K. Narasimhan, and Y. Cao.
+\newblock ReAct: Synergizing reasoning and acting in language models.
+\newblock In \emph{International Conference on Learning Representations}, 2023.
+\newblock Available at \url{https://arxiv.org/abs/2210.03629}.
+
+\bibitem[Du et~al.(2023)Du, Li, Torralba, Tenenbaum, and Mordatch]{du2023debate}
+Y. Du, S. Li, A. Torralba, J. B. Tenenbaum, and A. Mordatch.
+\newblock Improving factuality and reasoning in language models through multiagent debate.
+\newblock arXiv:2305.14325, 2023.
+\newblock Available at \url{https://arxiv.org/abs/2305.14325}.
+
+\bibitem[Xiao et~al.(2025)Xiao, Sun, Luo, and Wang]{xiao2025tradingagents}
+Y. Xiao, E. Sun, D. Luo, and W. Wang.
+\newblock TradingAgents: Multi-agents LLM financial trading framework.
+\newblock arXiv:2412.20138, version 7, 2025.
+\newblock Available at \url{https://arxiv.org/abs/2412.20138}.
+\end{thebibliography}
+\end{document}
