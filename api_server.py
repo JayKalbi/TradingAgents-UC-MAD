@@ -23,17 +23,17 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-# Importing TradingAgents loads the repository's .env file.
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.agents.rating import run_rating
 from tradingagents.backtest import run_backtest
 from tradingagents.compare import compare_backtests, write_comparison
-from tradingagents.dataflows.symbols import crypto_base, normalize_symbol, safe_ticker_component
 from tradingagents.dataflows.config import run_config
+from tradingagents.dataflows.symbols import crypto_base, normalize_symbol, safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
+
+# Importing TradingAgents loads the repository's .env file.
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.memory import TradingMemoryLog
 from tradingagents.memory.settlement import fetch_returns, resolve_benchmark
-
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / ".tradingagents-data"
@@ -462,7 +462,6 @@ def start_experiment(request: ExperimentRequest):
 
     def worker(update):
         cfg = _config(request.model, request.max_tool_rounds)
-        total = len(tickers) * len(dates)
         runs = []
         conditions = [
             ("Market-only baseline", ["market"]),
@@ -474,12 +473,14 @@ def start_experiment(request: ExperimentRequest):
                 message=f"Condition {condition_index + 1}/2: {label}",
             )
 
-            def progress(done, cells, current_ticker, current_date):
-                percentage = int(((condition_index + (done / max(cells, 1))) / 2) * 100)
-                update(
-                    progress=percentage,
-                    message=f"{label}: {current_ticker} on {current_date} ({done}/{cells})",
-                )
+            def make_progress(idx=condition_index, tag=label):
+                def progress(done, cells, current_ticker, current_date):
+                    percentage = int(((idx + (done / max(cells, 1))) / 2) * 100)
+                    update(
+                        progress=percentage,
+                        message=f"{tag}: {current_ticker} on {current_date} ({done}/{cells})",
+                    )
+                return progress
 
             result = run_backtest(
                 tickers,
@@ -487,7 +488,7 @@ def start_experiment(request: ExperimentRequest):
                 cfg,
                 asset_type="stock",
                 selected_analysts=analysts,
-                progress=progress,
+                progress=make_progress(),
             )
             runs.append({"label": label, "id": result.run_id, "analysts": analysts,
                          "failures": len(result.failures),

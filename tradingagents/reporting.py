@@ -72,81 +72,10 @@ _SECTIONS = (
     )),
 )
 
-_AVAILABILITY_SECTION = ("0. Data Availability and Evidence", "0_data_availability", (
-    ("How to read source coverage", "availability.md", ("data_availability_note",)),
-))
-
-_UNAVAILABLE_MARKERS = (
-    "data_unavailable", "no_data_available", "unavailable", "not configured",
-    "missing api key", "api key missing", "network error", "connection reset",
-    "failed to fetch", "could not retrieve", "could not be retrieved",
-)
-
-
-def _data_availability_note(final_state: dict) -> str:
-    """Add a reader-facing guard between missing feeds and LLM conclusions.
-
-    Vendor response metadata is not preserved in every graph state, so this
-    summary is explicitly attributed to what the agent reports. It never claims
-    an independent audit of the provider response.
-    """
-    source_reports = {
-        "news_report": str(final_state.get("news_report") or ""),
-        "market_report": str(final_state.get("market_report") or ""),
-        "fundamentals_report": str(final_state.get("fundamentals_report") or ""),
-        "sentiment_report": str(final_state.get("sentiment_report") or ""),
-    }
-
-    def unavailable(text: str) -> bool:
-        lowered = text.casefold()
-        return any(marker in lowered for marker in _UNAVAILABLE_MARKERS)
-
-    findings = []
-    news = source_reports["news_report"]
-    if unavailable(news) and any(term in news.casefold() for term in ("company news", "specific news", "news feed", "news articles")):
-        findings.append(
-            "- **Company news:** The News Analyst report says the news input was unavailable. "
-            "This run cannot verify whether company headlines existed; do not interpret the missing feed as no news."
-        )
-    if unavailable(news) and any(term in news.casefold() for term in ("macro", "fred", "treasury", "fed rates")):
-        findings.append(
-            "- **Macro indicators:** The News Analyst report says one or more macro inputs were unavailable. "
-            "Any general macro discussion is context or model inference, not a measured value from those feeds."
-        )
-    if unavailable(news) and any(term in news.casefold() for term in ("prediction market", "polymarket", "market-implied probabilities")):
-        findings.append(
-            "- **Prediction markets:** The News Analyst report says this input was unavailable. "
-            "No probability estimate was measured, and this does not mean no relevant event risk exists."
-        )
-    if unavailable(source_reports["market_report"]):
-        findings.append("- **Prices or indicators:** The Market Analyst report says one or more market inputs were unavailable; verify affected values before citing them.")
-    if unavailable(source_reports["fundamentals_report"]):
-        findings.append("- **Fundamentals:** The Fundamentals Analyst report says one or more inputs were unavailable; do not treat missing fields as zero or as evidence of absence.")
-    if unavailable(source_reports["sentiment_report"]):
-        findings.append("- **Social sentiment:** The Sentiment Analyst report says one or more sources were unavailable; its coverage and confidence may be limited.")
-
-    if not findings:
-        findings.append(
-            "- Agent reports did not explicitly flag a monitored source as unavailable. "
-            "This is not an independent completeness check of provider responses."
-        )
-
-    return "\n".join([
-        "**Coverage status below is taken from the analyst reports, not independent API telemetry.** "
-        "An unavailable input means the run received no usable evidence from that source; it does not establish that no event, headline, or risk existed.",
-        "",
-        *findings,
-        "",
-        "**Evidence boundary:** Analyst narratives and summary tables are LLM-generated. Verify factual or numeric claims against retrieved source material before citing them; general commentary must not be presented as a measurement from an unavailable feed.",
-    ])
-
 
 def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str, str]]]]:
     """The sections with something to say: (heading, folder, [(agent, file, text)])."""
-    parts = [(
-        _AVAILABILITY_SECTION[0], _AVAILABILITY_SECTION[1],
-        [("Coverage status and interpretation limits", "availability.md", _data_availability_note(final_state))],
-    )]
+    parts = []
     for heading, folder, agents in _SECTIONS:
         written = []
         for agent, filename, path in agents:
@@ -161,7 +90,7 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
 
 
 def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict | None = None,
-                      html: bool = True, cache_dir=None) -> Path:
+                      html: bool = True) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path.
 
     ``settings`` (``TradingAgentsGraph.run_settings()``) adds what produced the run
@@ -188,7 +117,7 @@ def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict 
         from tradingagents.report_html import render_report
 
         (save_path / "complete_report.html").write_text(
-            render_report(ticker, final_state, settings, parts, cache_dir=cache_dir), encoding="utf-8"
+            render_report(ticker, final_state, settings, parts), encoding="utf-8"
         )
     else:
         (save_path / "complete_report.html").unlink(missing_ok=True)
@@ -200,7 +129,7 @@ def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict 
         for _heading, folder, written in parts
         for _agent, filename, _text in written
     }
-    for _heading, folder, agents in (_AVAILABILITY_SECTION, *_SECTIONS):
+    for _heading, folder, agents in _SECTIONS:
         for _agent, filename, _path in agents:
             if (folder, filename) not in current_files:
                 (save_path / folder / filename).unlink(missing_ok=True)

@@ -6,13 +6,9 @@ forbids any fetch. Report text is rendered as CommonMark with raw HTML and image
 off, so nothing a model wrote can inject markup or load a remote asset.
 """
 
-import csv
 from datetime import datetime
 from html import escape
 from importlib.resources import files
-from pathlib import Path
-from tradingagents.dataflows.symbols import safe_ticker_component
-import csv
 
 from markdown_it import MarkdownIt
 
@@ -82,34 +78,6 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .run .group { display: inline-block; margin-right: 0.9rem; white-space: nowrap; }
 .run .group > .name { color: var(--muted); margin-right: 0.3rem; }
 .run .then { color: var(--muted); margin: 0 0.2rem; }
-.decision-visual { margin-top: 1.5rem; padding: 1rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--wash); }
-.decision-visual-title { margin: 0 0 0.7rem; color: var(--muted); font: 600 0.78rem/1.4 var(--sans); text-transform: uppercase; letter-spacing: 0.08em; }
-.rating-spectrum { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.35rem; }
-.rating-step { min-height: 2.1rem; display: grid; place-items: center; padding: 0.35rem 0.2rem; border-radius: 4px; background: var(--paper); color: var(--muted); font: 600 0.72rem/1.2 var(--sans); text-align: center; }
-.rating-step.down { border-bottom: 3px solid var(--down); }
-.rating-step.level { border-bottom: 3px solid var(--level); }
-.rating-step.up { border-bottom: 3px solid var(--up); }
-.rating-step.active { outline: 2px solid var(--ink); outline-offset: 1px; color: var(--ink); }
-.reader-summary { margin: 1.5rem 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; font: .82rem/1.45 var(--sans); }
-.summary-card { min-width: 0; padding: .8rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--wash); }
-.summary-card strong { display:block; margin-top:.25rem; font-size:1.05rem; font-variant-numeric:tabular-nums; }
-.summary-card small { display:block; color:var(--muted); margin-top:.25rem; }
-.report-guide { margin: 1.5rem 0; padding: 1rem; border-left: 3px solid var(--accent); background: var(--wash); font: .9rem/1.55 var(--sans); }
-.report-guide h2 { margin:0 0 .45rem; font-size:1rem; }
-.report-guide p { margin:.35rem 0; }
-.market-chart { margin: 2rem 0; padding: 1rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--wash); break-inside: avoid; }
-.market-chart h2 { margin:0 0 .2rem; font:600 1.15rem/1.35 var(--sans); }
-.market-chart p { margin:.4rem 0; color:var(--muted); font: .82rem/1.5 var(--sans); }
-.market-chart svg { display:block; width:100%; height:auto; overflow:visible; }
-.market-chart .gridline { stroke:var(--edge); stroke-dasharray:3 5; }
-.market-chart .axis-label { fill:var(--muted); font:12px var(--sans); }
-.market-chart .series-close { fill:none; stroke:#087a59; stroke-width:2.8; }
-.market-chart .series-sma50 { fill:none; stroke:#c07a12; stroke-width:2; }
-.market-chart .series-sma200 { fill:none; stroke:#6853a6; stroke-width:2; }
-.chart-legend { display:flex; flex-wrap:wrap; gap:.85rem; margin-top:.5rem; font: .78rem var(--sans); color:var(--muted); }
-.chart-legend span { display:flex; align-items:center; gap:.4rem; }
-.chart-legend i { display:inline-block; width:1.2rem; border-top:2px solid; }
-.chart-legend .legend-close { color:#087a59; } .chart-legend .legend-sma50 { color:#c07a12; } .chart-legend .legend-sma200 { color:#6853a6; }
 
 /* The sections: listed under the header on narrow screens. On wide ones, a
    quiet rail centred on the left edge (numerals for the sections, short bars
@@ -199,7 +167,6 @@ tbody tr:last-child td { border-bottom: 0; }
   .run { grid-template-columns: 1fr; gap: 0 0; }
   .run dd { margin-bottom: 0.45rem; }
   .run .group { white-space: normal; }
-  .reader-summary { grid-template-columns:1fr; }
 }
 @media print {
   :root { --paper: #fff; --ink: #000; --muted: #444; --rule: #bbb; --accent: #000; --wash: #f2f2f2;
@@ -278,132 +245,7 @@ def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, st
     return details
 
 
-def _market_snapshot(ticker: str, final_state: dict, settings: dict | None, cache_dir) -> str:
-    """Build an offline price/SMA chart from the run's Yahoo cache, capped at its analysis date."""
-    vendors = (settings or {}).get("data_vendors") or {}
-    if "yfinance" not in str(vendors.get("core_stock_apis", "")).casefold():
-        return ""
-    trade_date = str(final_state.get("trade_date") or "")[:10]
-    if not trade_date or not cache_dir:
-        return ""
-    try:
-        safe_ticker = safe_ticker_component(ticker)
-    except ValueError:
-        return ""
-    path = Path(cache_dir) / f"{safe_ticker}-YFin-data.csv"
-    if not path.is_file():
-        return ""
-
-    rows = []
-    try:
-        with path.open(encoding="utf-8", newline="") as stream:
-            for row in csv.DictReader(stream):
-                bar_date = (row.get("Date") or row.get("Datetime") or "")[:10]
-                try:
-                    close = float(row["Close"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-                if bar_date and bar_date <= trade_date and close > 0:
-                    rows.append((bar_date, close))
-    except (OSError, UnicodeError):
-        return ""
-    if len(rows) < 20:
-        return ""
-    latest_date = rows[-1][0]
-    try:
-        lag = (datetime.fromisoformat(trade_date) - datetime.fromisoformat(latest_date)).days
-    except ValueError:
-        return ""
-    if lag > 10:
-        return ""
-
-    rows.sort(key=lambda item: item[0])
-    values = [close for _, close in rows]
-    def rolling_mean(window):
-        result = [None] * len(values)
-        running = 0.0
-        for idx, value in enumerate(values):
-            running += value
-            if idx >= window:
-                running -= values[idx - window]
-            if idx >= window - 1:
-                result[idx] = running / window
-        return result
-
-    series = [("Close", values[-180:], "series-close")]
-    sma50, sma200 = rolling_mean(50), rolling_mean(200)
-    if any(value is not None for value in sma50[-180:]):
-        series.append(("50-day SMA", sma50[-180:], "series-sma50"))
-    if any(value is not None for value in sma200[-180:]):
-        series.append(("200-day SMA", sma200[-180:], "series-sma200"))
-
-    chart_start = max(0, len(values) - 180)
-    visible_dates = [item[0] for item in rows[chart_start:]]
-    visible_values = [v for _, seq, _ in series for v in seq if v is not None]
-    low, high = min(visible_values), max(visible_values)
-    padding = max((high - low) * 0.08, high * 0.002)
-    low, high = low - padding, high + padding
-    left, right, top, bottom = 76, 790, 24, 272
-    width, height = right - left, bottom - top
-    count = len(visible_dates)
-    def x_at(index):
-        return left + width * index / max(count - 1, 1)
-    def y_at(value):
-        return top + height * (high - value) / (high - low)
-
-    grid = []
-    for step in range(5):
-        value = low + (high - low) * step / 4
-        y = y_at(value)
-        grid.append(
-            f'<line class="gridline" x1="{left}" x2="{right}" y1="{y:.1f}" y2="{y:.1f}" />'
-            f'<text class="axis-label" x="{left - 8}" y="{y + 4:.1f}" text-anchor="end">{value:,.0f}</text>'
-        )
-    plots = []
-    legends = []
-    for label, sequence, class_name in series:
-        points = []
-        for idx, value in enumerate(sequence):
-            if value is not None:
-                points.append(f"{x_at(idx):.1f},{y_at(value):.1f}")
-        if len(points) > 1:
-            plots.append(f'<polyline class="{class_name}" points="{" ".join(points)}" />')
-        legends.append(f'<span><i class="legend-{class_name.removeprefix("series-")}"></i>{escape(label)}</span>')
-
-    first_label = visible_dates[0][5:]
-    last_label = visible_dates[-1][5:]
-    close = values[-1]
-    cards = [f'<div class="summary-card"><span>Latest cached close</span><strong>{close:,.2f}</strong><small>as of {escape(latest_date)}</small></div>']
-    explanation = []
-    for window, mean_series in ((50, sma50), (200, sma200)):
-        average = mean_series[-1]
-        if average is None:
-            continue
-        gap = (close / average - 1) * 100
-        relation = "above" if gap >= 0 else "below"
-        cards.append(f'<div class="summary-card"><span>{window}-day moving average</span><strong>{average:,.2f}</strong><small>close is {abs(gap):.1f}% {relation}</small></div>')
-        explanation.append(f"The latest close is {abs(gap):.1f}% {relation} the {window}-day average.")
-    if len(cards) == 1:
-        cards.append('<div class="summary-card"><span>Long-term average</span><strong>Not available</strong><small>not enough cached history</small></div>')
-    currency = "INR" if ticker.endswith((".NS", ".BO")) else "price units"
-    chart = (
-        '<section class="market-chart" aria-labelledby="price-history-title">'
-        f'<h2 id="price-history-title">Price history and trend context</h2>'
-        f'<p>Cached daily closes through {escape(latest_date)}; data after the analysis date is excluded. Values are in {currency}.</p>'
-        f'<svg viewBox="0 0 820 310" role="img" aria-label="Daily closing price and available moving averages from {escape(first_label)} through {escape(last_label)}">'
-        f'{"".join(grid)}<line class="gridline" x1="{left}" x2="{right}" y1="{bottom}" y2="{bottom}" />'
-        f'{"".join(plots)}'
-        f'<text class="axis-label" x="{left}" y="300">{escape(first_label)}</text>'
-        f'<text class="axis-label" x="{right}" y="300" text-anchor="end">{escape(last_label)}</text></svg>'
-        f'<div class="chart-legend">{"".join(legends)}</div>'
-        f'<div class="reader-summary">{"".join(cards)}</div>'
-        f'<p><strong>How to read it:</strong> {escape(" ".join(explanation))} Moving averages summarize historical prices; they are not forecasts. The chart is a cached data snapshot, not a live quote.</p>'
-        '</section>'
-    )
-    return chart
-
-
-def render_report(ticker: str, final_state: dict, settings: dict | None, parts, cache_dir=None) -> str:
+def render_report(ticker: str, final_state: dict, settings: dict | None, parts) -> str:
     """The report page: title and rating, what produced the run, contents, sections."""
     md = _markdown()
     rating = run_rating(final_state) if final_state.get("final_trade_decision") else ""
@@ -434,22 +276,6 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts, 
         body.append("</section>")
 
     page_title = " ".join(x for x in (ticker, date, rating) if x)
-    analyst_count = len((settings or {}).get("analysts") or [])
-    snapshot = _market_snapshot(ticker, final_state, settings, cache_dir)
-    summary = (
-        '<section class="reader-summary" aria-label="Run summary">'
-        f'<div class="summary-card"><span>Final rating</span><strong>{escape(rating or "Not returned")}</strong><small>LLM-generated recommendation</small></div>'
-        f'<div class="summary-card"><span>Analysis date</span><strong>{escape(date or "Not specified")}</strong><small>Historical cutoff for this run</small></div>'
-        f'<div class="summary-card"><span>Selected analysts</span><strong>{analyst_count}</strong><small>Specialist roles configured</small></div>'
-        '</section>'
-    )
-    workflow = (
-        '<aside class="report-guide"><h2>How this report is organized</h2>'
-        '<p><strong>Analysts</strong> gather price, news, sentiment, and company evidence. '
-        '<strong>Research</strong> compares bullish and bearish cases. <strong>Trading</strong> proposes a plan. '
-        '<strong>Risk</strong> reviews the plan, and the <strong>Portfolio Manager</strong> produces the final rating.</p>'
-        '<p>These are model-generated judgments. Check the data-availability section before relying on a claim; an unavailable feed is not proof that no event occurred.</p></aside>'
-    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -466,13 +292,9 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts, 
 <h1>{title}</h1>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
 <dl class="run">{details}</dl>
-{_rating_visual(rating)}
 </header>
 <nav class="contents" aria-label="Sections"><ul>{"".join(contents)}</ul></nav>
 <main>
-{summary}
-{workflow}
-{snapshot}
 {"".join(body)}
 </main>
 <footer class="credit"><a href="{_PROJECT}" rel="noopener">TradingAgents</a> powered by <a class="brand" href="{_ORG}" rel="noopener">Tauric Research</a></footer>
@@ -481,24 +303,3 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts, 
 </body>
 </html>
 """
-
-
-def _rating_visual(rating: str) -> str:
-    """Render the agent's categorical rating on an ordinal scale, not as a forecast."""
-    if not rating:
-        return ""
-    steps = ("Sell", "Underweight", "Hold", "Overweight", "Buy")
-    rendered_steps = []
-    for step in steps:
-        active = step == rating
-        current = ' aria-current="true"' if active else ""
-        rendered_steps.append(
-            f'<div class="rating-step {_TONE.get(step, "level")}{" active" if active else ""}"'
-            f'{current}>{escape(step)}</div>'
-        )
-    rendered = "".join(rendered_steps)
-    return (
-        f'<div class="decision-visual" role="img" aria-label="Agent rating: {escape(rating)} on a five-level scale">'
-        f'<p class="decision-visual-title">Agent rating · categorical output</p>'
-        f'<div class="rating-spectrum">{rendered}</div></div>'
-    )
