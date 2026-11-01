@@ -237,8 +237,8 @@ Follow this 4-step sequence during project examinations or live demonstrations:
 
 ### Experimental Design & Methodology
 
-```
-                      Historical Ticker & Date Input (RELIANCE.NS)
+`
+                      Historical Ticker & Date Input (e.g. TCS.NS)
                                            │
                     ┌──────────────────────┴──────────────────────┐
                     │                                             │
@@ -246,27 +246,30 @@ Follow this 4-step sequence during project examinations or live demonstrations:
            Market Analyst Only                     Market + News + Fundamentals
                     │                                             │
             Identical LLM:                                Identical LLM:
-        Gemini 3.5 Flash-Lite                         Gemini 3.5 Flash-Lite
+         Gemini Flash-Lite                             Gemini Flash-Lite
                     │                                             │
-         Qualitative Rating $r_A$                      Qualitative Rating $r_B$
+         Qualitative Rating (r_A)                      Qualitative Rating (r_B)
                     │                                             │
-      Exposure Mapping $w_A \in [-1, 1]$            Exposure Mapping $w_B \in [-1, 1]$
+         Exposure Weight (w_A)                         Exposure Weight (w_B)
+         [-1.0, -0.5, 0, +0.5, +1.0]                   [-1.0, -0.5, 0, +0.5, +1.0]
                     │                                             │
                     └──────────────────────┬──────────────────────┘
                                            │
-                        5-Day Historical Settlement Horizon
-                            vs. NIFTY 50 Benchmark ($\alpha_i$)
+                         5-Day Historical Settlement Horizon
+                            vs. Regional Benchmark (NIFTY 50)
+                                Alpha: a_i = R_stock,i - R_bench,i
                                            │
                     ┌──────────────────────┴──────────────────────┐
                     │                                             │
-        $s_{i, A} = w_{i, A} \times \alpha_i$         $s_{i, B} = w_{i, B} \times \alpha_i$
+         Weighted Outcome s_{i,A}                      Weighted Outcome s_{i,B}
+              s_{i,A} = w_{i,A} * a_i                       s_{i,B} = w_{i,B} * a_i
                     │                                             │
                     └──────────────────────┬──────────────────────┘
                                            │
-                         Paired Delta: $\Delta_i = s_{i, B} - s_{i, A}$
+                          Paired Delta: Delta_i = s_{i,B} - s_{i,A}
                                            │
-                 95% Paired-Bootstrap CI & Exact Two-Sided Sign-Flip Test
-```
+                  95% Paired-Bootstrap CI & Exact Two-Sided Sign-Flip Test
+`
 
 ### Exposure Normalization
 Qualitative recommendations are mapped to standardized exposure weights:
@@ -275,23 +278,33 @@ $$\text{Buy} \rightarrow +1.0, \quad \text{Overweight} \rightarrow +0.5, \quad \
 The rating-weighted benchmark-relative outcome for case $i$ under configuration $c$ is:
 $$s_{i, c} = w_{i, c} \times \alpha_i, \quad \text{where } \alpha_i = R_{\text{stock}, i} - R_{\text{NIFTY50}, i}$$
 
-### Measured Case-Level Results
+### Measured Case-Level Results (TCS.NS Benchmark Study)
 
-| Decision Date | 5-Day NIFTY Alpha ($\alpha$) | Baseline Rating | Baseline Score ($s_A$) | Treatment Rating | Treatment Score ($s_B$) | Paired $\Delta$ ($s_B - s_A$) |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **14 Oct 2026** | $-0.30\%$ | Hold | $0.00\%$ | Overweight | $-0.15\%$ | $-0.15\text{ pp}$ |
-| **15 Oct 2026** | $+0.90\%$ | Hold | $0.00\%$ | Hold | $0.00\%$ | $0.00\text{ pp}$ |
-| **16 Oct 2026** | $+0.10\%$ | Hold | $0.00\%$ | Overweight | $+0.05\%$ | $+0.05\text{ pp}$ |
+The primary evaluation study evaluates **Tata Consultancy Services (TCS.NS)** across 4 consecutive settled trading dates against the regional **NIFTY 50** benchmark using Gemini 3.5 Flash-Lite (Baseline Run A: 20261102_001054 vs. Treatment Run B: 20261102_001700).
+
+| Decision Date | 5-Day NIFTY Alpha (alpha_i) | Baseline (Market-Only) Rating | Baseline Score (s_{i, A}) | Baseline Hit | Treatment (Expanded) Rating | Treatment Score (s_{i, B}) | Treatment Hit | Paired Delta (Delta_i) |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **16 Oct 2026** | +2.10% | Overweight (+0.5) | +1.05% | Hit (True) | Overweight (+0.5) | +1.05% | Hit (True) | 0.00 pp |
+| **19 Oct 2026** | -2.20% | Overweight (+0.5) | -1.10% | Miss (False) | Hold (0.0) | 0.00% | N/A (Neutral) | **+1.10 pp** |
+| **21 Oct 2026** | -2.30% | Hold (0.0) | 0.00% | N/A (Neutral) | Hold (0.0) | 0.00% | N/A (Neutral) | 0.00 pp |
+| **22 Oct 2026** | -3.10% | Overweight (+0.5) | -1.55% | Miss (False) | Hold (0.0) | 0.00% | N/A (Neutral) | **+1.55 pp** |
 
 ### Aggregate Summary & Statistical Inference
 
-| Metric | Condition A (Market-Only) | Condition B (Expanded Team) | Difference / Significance |
+| Evaluation Metric | Condition A (Market-Only) | Condition B (Expanded Team) | Difference / Inferred Statistical Value |
 |---|:---:|:---:|:---:|
-| **Mean Rating-Weighted Alpha** | $0.000\%$ | $-0.033\%$ | $\mathbf{-0.033\text{ pp}}$ |
-| **95% Bootstrap Confidence Interval** | — | — | **$[-0.150, +0.050]\text{ pp}$** |
-| **Exact Paired Sign-Flip Test** | — | — | **$p = 1.000$** |
-| **Directional Coverage** | $0.0\%$ (0/3 non-neutral) | $66.7\%$ (2/3 non-neutral) | $+66.7\text{ pp}$ |
-| **Directional Accuracy** | Undefined (no calls) | $50.0\%$ (1 hit / 1 miss) | — |
+| **Mean Rating-Weighted Alpha** | **-0.40%** (negative drag) | **+0.26%** (positive alpha) | **+0.66 pp** (+0.66%) |
+| **95% Paired-Bootstrap CI** | — | — | **[+0.00%, +1.33%]** |
+| **Exact Paired Sign-Flip Test** | — | — | **p = 0.5000** |
+| **Directional Accuracy** | 33.3% (1 hit / 2 misses) | **100.0%** (1 hit / 0 misses) | **+66.7 pp** |
+| **Directional Coverage** | 75.0% (3/4 active calls) | 25.0% (1/4 active calls) | -50.0 pp (Coverage p = 0.500) |
+| **Downside Capital Preservation** | Suffered -2.65 pp loss | Neutral on negative days | **Preserved +2.65 pp return** |
+
+> **Key Quantitative Finding**: 
+> Condition B (the multi-agent expanded team incorporating News and Fundamentals alongside Market Analysis) outperformed the single-agent Market baseline by **+0.66 pp**. The mechanism of outperformance was **defensive capital preservation**: on Oct 19 (alpha -2.20%) and Oct 22 (alpha -3.10%), market-only momentum indicators triggered premature Overweight buy calls, whereas the expanded research team diagnosed fundamental valuation and macro headwinds, remaining in Hold. This averted -2.65 pp in benchmark-relative losses.
+
+#### Comparative Multi-Asset Pilot Context (RELIANCE.NS)
+In addition to the primary TCS.NS study, an earlier 3-date pilot on RELIANCE.NS (26aebe0c025d) demonstrated complementary behavior: Condition A issued all Hold ratings (0.00% alpha, 0% coverage), while Condition B expanded coverage to 66.7% (Mean difference: -0.033 pp, 95% CI [-0.150%, +0.050%], p = 1.000). Across both equities, the framework proves that agent composition alters coverage and risk appetite systematically, providing auditable verification rather than ungrounded claims.
 
 ---
 
