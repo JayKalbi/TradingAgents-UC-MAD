@@ -237,39 +237,39 @@ Follow this 4-step sequence during project examinations or live demonstrations:
 
 ### Experimental Design & Methodology
 
-`
-                      Historical Ticker & Date Input (e.g. TCS.NS)
-                                           │
-                    ┌──────────────────────┴──────────────────────┐
-                    │                                             │
-         [Condition A: Baseline]                       [Condition B: Treatment]
-           Market Analyst Only                     Market + News + Fundamentals
-                    │                                             │
-            Identical LLM:                                Identical LLM:
-         Gemini Flash-Lite                             Gemini Flash-Lite
-                    │                                             │
-         Qualitative Rating (r_A)                      Qualitative Rating (r_B)
-                    │                                             │
-         Exposure Weight (w_A)                         Exposure Weight (w_B)
-         [-1.0, -0.5, 0, +0.5, +1.0]                   [-1.0, -0.5, 0, +0.5, +1.0]
-                    │                                             │
-                    └──────────────────────┬──────────────────────┘
-                                           │
-                         5-Day Historical Settlement Horizon
-                            vs. Regional Benchmark (NIFTY 50)
-                                Alpha: a_i = R_stock,i - R_bench,i
-                                           │
-                    ┌──────────────────────┴──────────────────────┐
-                    │                                             │
-         Weighted Outcome s_{i,A}                      Weighted Outcome s_{i,B}
-              s_{i,A} = w_{i,A} * a_i                       s_{i,B} = w_{i,B} * a_i
-                    │                                             │
-                    └──────────────────────┬──────────────────────┘
-                                           │
-                          Paired Delta: Delta_i = s_{i,B} - s_{i,A}
-                                           │
-                  95% Paired-Bootstrap CI & Exact Two-Sided Sign-Flip Test
-`
+```mermaid
+flowchart TD
+    Input["Historical Ticker and Date Input<br/>(e.g., TCS.NS / RELIANCE.NS)"]
+
+    subgraph LLM ["Matched Evaluator: Gemini Flash-Lite"]
+        direction LR
+        subgraph CondA ["Condition A: Baseline"]
+            A1["Market Analyst Only"] --> A2["Qualitative Rating (r_A)"] --> A3["Exposure Weight w_A in [-1, +1]"]
+        end
+        subgraph CondB ["Condition B: Treatment"]
+            B1["Market + News + Fundamentals"] --> B2["Qualitative Rating (r_B)"] --> B3["Exposure Weight w_B in [-1, +1]"]
+        end
+    end
+
+    Input --> CondA
+    Input --> CondB
+
+    Horizon["5-Day Historical Settlement Horizon<br/>vs. Regional Benchmark (NIFTY 50)<br/>Alpha: a_i = R_stock,i - R_bench,i"]
+
+    CondA --> Horizon
+    CondB --> Horizon
+
+    OutcomeA["Weighted Outcome s_i,A<br/>s_i,A = w_i,A * a_i"]
+    OutcomeB["Weighted Outcome s_i,B<br/>s_i,B = w_i,B * a_i"]
+
+    Horizon --> OutcomeA
+    Horizon --> OutcomeB
+
+    Delta["Paired Difference Delta_i = s_i,B - s_i,A<br/>95% Paired-Bootstrap CI and Exact Sign-Flip Test"]
+
+    OutcomeA --> Delta
+    OutcomeB --> Delta
+```
 
 ### Exposure Normalization
 Qualitative recommendations are mapped to standardized exposure weights:
